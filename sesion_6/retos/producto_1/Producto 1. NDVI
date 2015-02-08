@@ -1,0 +1,57 @@
+## Producto 1: ANÁLISIS DE LA TENDENCIA DE NDVI. 
+
+Caracterización del funcionamiento del ecosistema y de las variables ambientales que lo condicionan. Gracias a la gran cantidad de información procedente de sensores remotos, es posible conocer la evolución temporal de variables como la cobertura de nieve, índice de vegetación o temperatura del suelo en los distintos tipos de ecosistemas diana. En concreto evaluaremos la tendencia en la cobertura de nieve para los robledales de Sierra Nevada. Se trata de caracterizar la tendencia en la duración de la nieve para cada píxel ocupado por robledal y año hidrológico. El producto final será un mapa que muestre las tendencias en la duración de la nieve para cada píxel en toda la serie temporal (2000-2012).
+
+require('Kendall')
+library('wq')       # For Kendall and Theil-Sen Slope analysis 
+library('ggplot2')  # For advanced plots 
+library('reshape2') # Manipule data
+library('zoo')      # Temporal series 
+library('classInt')
+library('RColorBrewer')
+
+ndvi <- read.table('./ndvi_robledal.csv', header = TRUE, sep=';')
+
+##Creamos un data frame vacío y otro auxiliar.
+df_vacio<-data.frame()
+df_auxiliar<-data.frame(iv_malla_modi_id=NA,tau=NA, pvalor=NA)
+
+##Calculamos la tendencia para cada pixel. Como hay 4 datos de cada pixel, utilizamos la función unique, que nos dará un único valor de tendencia de cada pixell.
+tendenciapixel<- unique(ndvi$iv_malla_modi_id)
+
+
+## generas el df_auxiliar con los valores del tau y pvalue, y lat y long
+## y lo añades con el rbind al data frame df_vacio
+
+##Hacemos un bucle 
+for(i in tendenciapixel) {
+  mis_ndvi <- ndvi[ndvi$iv_malla_modi_id == i, ] ##selecciono los valores de ndvi_i para el pixel i
+  m <-MannKendall(mis_ndvi$ndvi_i) 
+  df_auxiliar$iv_malla_modi_id<-i
+  df_auxiliar$tau<-m[[1]][1] 
+  df_auxiliar$pvalor<-m[[2]][1] 
+  df_vacio<-rbind(df_vacio,df_auxiliar)
+}
+
+ndvi_aux<-ndvi[,c(1,4,5)]
+ndvi_aux<-unique(ndvi_aux)
+
+
+library(plyr)
+mannkendall_ndvi<-join(df_vacio,ndvi_aux, by="iv_malla_modi_id")
+
+
+library (sp)
+coordinates(mannkendall_ndvi)=~lng+lat
+
+proj4string(mannkendall_ndvi)=CRS("+init=epsg:4326")
+
+## partir valores de tau en 5 clases
+clases <- classIntervals(mannkendall_ndvi$tau, n = 5)
+plotclr <- rev(brewer.pal(5, "Spectral"))
+colcode <- findColours(clases, plotclr)
+
+plot(mannkendall_ndvi, col=colcode, pch=19, cex = .6, main = "Mapa de Tendencias")
+legend("topright", legend=names(attr(colcode, "table")), fill=attr(colcode, "palette"), bty="n")
+
+## Se ejecuta pero no se representa el plot.

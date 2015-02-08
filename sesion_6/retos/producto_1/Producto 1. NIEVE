@@ -1,0 +1,40 @@
+## Producto 1: ANÁLISIS DE LA TENDENCIA DE NIEVE. 
+
+Caracterización del funcionamiento del ecosistema y de las variables ambientales que lo condicionan. Gracias a la gran cantidad de información procedente de sensores remotos, es posible conocer la evolución temporal de variables como la cobertura de nieve, índice de vegetación o temperatura del suelo en los distintos tipos de ecosistemas diana. En concreto evaluaremos la tendencia en la cobertura de nieve para los robledales de Sierra Nevada. Se trata de caracterizar la tendencia en la duración de la nieve para cada píxel ocupado por robledal y año hidrológico. El producto final será un mapa que muestre las tendencias en la duración de la nieve para cada píxel en toda la serie temporal (2000-2012).
+
+require('Kendall')
+library('wq')       # For Kendall and Theil-Sen Slope analysis 
+library('ggplot2')  # For advanced plots 
+library('reshape2') # Manipule data
+library('zoo')      # Temporal series 
+library('classInt')
+library('RColorBrewer')
+library(plyr)
+
+nieve <- read.table('./nieve_robledal.csv', header = TRUE, sep=';')
+
+##Creamos un data frame vacío y otro auxiliar.
+df_vacio<-data.frame()
+df_auxiliar<-data.frame(nie_malla_modi_id=NA,tau=NA, pvalor=NA)
+
+##Calculamos la tendencia para cada pixel. Como hay 4 datos de cada pixel, utilizamos la función unique, que nos dará un único valor de tendencia de cada pixell.
+tendenciapixel<- unique(nieve$nie_malla_modi_id)
+
+##Hacemos un bucle 
+for(i in tendenciapixel) {
+  mis_nieves <- nieve[nieve$nie_malla_modi_id == i, ] ##selecciono los valores de nieve_i para el pixel i
+  m <-MannKendall(mis_nieves$scd) 
+  df_auxiliar$nie_malla_modi_id<-i
+  df_auxiliar$tau<-m[[1]][1] 
+  df_auxiliar$pvalor<-m[[2]][1] 
+  df_vacio<-rbind(df_vacio,df_auxiliar)
+}
+
+nieve_aux<-nieve[,c(1,4,5)]
+nieve_aux<-unique(nieve_aux)
+
+
+mannkendall_nieve<-join(df_vacio,nieve_aux, by="nie_malla_modi_id")
+
+## Error in `[.data.frame`(y, by) : undefined columns selected.
+## No se seguir.
